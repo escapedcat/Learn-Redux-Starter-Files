@@ -1,5 +1,5 @@
 // load posts initally
-export function loadPosts(index) {
+export function loadPosts() {
   return {
     type: 'LOAD_POSTS'
   }
