@@ -1,4 +1,4 @@
-# Extending Webos Tutorial to use redux-saga
+# Extending Wesbos Tutorial to use redux-saga
 
 After doing Wesbos tutorial and [Joel Hooks tutorial](http://joelhooks.com/blog/2016/03/20/build-an-image-gallery-using-redux-saga/) I decided to extend Wesbos lessons with one more to use Saga for the IG API call. He suggested this to be one of the next things to learn when you're done with his tutorial as well.
 
