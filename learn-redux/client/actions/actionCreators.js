@@ -5,6 +5,13 @@ export function loadPosts() {
   }
 }
 
+// load comments initally
+export function loadComments() {
+  return {
+    type: 'LOAD_COMMENTS'
+  }
+}
+
 // increment
 export function increment(index) {
   return {

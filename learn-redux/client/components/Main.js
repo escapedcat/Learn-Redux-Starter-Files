@@ -2,6 +2,11 @@ import React from 'react';
 import { Link } from 'react-router';
 
 const Main = React.createClass({
+  componentDidMount() {
+    this.props.loadPosts();
+    this.props.loadComments();
+  },
+
   render() {
     return (
       <div>

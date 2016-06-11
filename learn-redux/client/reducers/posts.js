@@ -2,10 +2,10 @@ function posts(state = [], action) {
   switch(action.type) {
     case 'POSTS_LOADED':
 console.info('POSTS_LOADED');
-      return state;
+      return action.posts;
 
     case 'POST_LOAD_FAILURE':
-console.error('oh oh, IMAGE_LOAD_FAILURE');
+console.error('oh oh, POSTS_LOAD_FAILURE');
       return state;
 
     case 'INCREMENT_LIKES' :

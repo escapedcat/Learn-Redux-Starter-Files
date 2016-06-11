@@ -17,6 +17,7 @@ function postComments(state = [], action) {
     default:
       return state;
   }
+
   return state;
 }
 
@@ -29,7 +30,22 @@ function comments(state = [], action) {
       [action.postId]: postComments(state[action.postId], action)
     }
   }
+
+  switch(action.type){
+    case 'COMMENTS_LOADED':
+console.info('COMMENTS_LOADED');
+      return action.comments;
+
+    case 'COMMENT_LOAD_FAILURE':
+console.error('oh oh, POSTS_LOAD_FAILURE');
+      return state;
+
+    default:
+      return state;
+  }
+
   return state;
 }
+
 
 export default comments;
