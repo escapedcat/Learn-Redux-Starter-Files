@@ -191,7 +191,7 @@ Now getting blank page (with headline) without errors, but also nothign else. `w
 Well that was obvious. Joel is adding `sagaMiddleware` to the store creation. Can we find where to add this to Wes' files?  
 
 ### extending `store.js`
-When Joel is creating the store he's stuffing the saga-middleware into the `createStore` function. Wes is just adding the empty default store there. So whatever I just did to `reduxstagram.js` I need to import the saga-stuff into the store I guess.
+When Joel is creating the store he's stuffing the saga-middleware into the `createStore` function. Wes is adding the default store there by importing _comments_ and _posts_.  Whatever I just did to `reduxstagram.js` I need to import the saga-stuff into the store I guess.
 ```
 import createSagaMiddleware from 'redux-saga';
 import {watchForLoadPosts} from './sagas/sagas';
@@ -200,13 +200,13 @@ const store = createStore(rootReducer, applyMiddleware(createSagaMiddleware(watc
 ```
 I removed the _imports_ from `reduxstagram.js`.
 
-`Uncaught ReferenceError: applyMiddleware is not defined` Hm, I guess that's progress. Yep, I did not import that from _Redux_. So Let's:
+`Uncaught ReferenceError: applyMiddleware is not defined` Hm, I guess that's progress. Yep, I did not import that from _Redux_. So let's:
 ```
 import { createStore, compose, applyMiddleware } from 'redux';
 ```
 
 #### Excursion into the wilderness of JavaScript updates
-So because I just installed teh latest version of `redux-saga` (^0.10.5) and not 0.8.0 like Joel did I now get:
+So because I just installed the _"latest"_ version of `redux-saga` (^0.10.5) and not 0.8.0 like Joel did I now get:
 ```
 Uncaught Error: You passed a function to the Saga middleware. You are likely trying to start a        Saga by directly passing it to the middleware. This is no longer possible starting from 0.10.0.        To run a Saga, you must do it dynamically AFTER mounting the middleware into the store.
         Example:
@@ -218,7 +218,7 @@ Uncaught Error: You passed a function to the Saga middleware. You are likely try
           sagaMiddleware.run(saga, ...args)
 ```
 I could downgrade or actually read this. Let's read it.  
-So I should not stuff the Saga directly into the middleware, but do it in a nice way. They actually provided a helpful example. I'm impressed. Sp lets do:
+So I should not stuff the Saga directly into the middleware, but do it in a nice way. They actually provided a helpful example. I'm impressed. So lets do:
 ```
 const sagaMiddleware = createSagaMiddleware();
 const store = createStore(rootReducer, applyMiddleware(sagaMiddleware));
@@ -226,7 +226,151 @@ sagaMiddleware.run(watchForLoadPosts);
 ```
 AAaaaaannnd hooray, we get: `LOAD_POSTS` in the console.
 
+### Wireing the saga functionality
 
-#### Nothing else happens
-Trying to figure out why the first Generator isn't calling the `loadPosts` Generator.  
-I need to debug this somehow, so first I'll [watch this](https://www.youtube.com/watch?v=ategZqxHkz4) again.  
+Ok, so this is kinda a jump forward. Issue was, that I was wondering why nothing else happens for a long time. The `fetch` wasn't called. I thought it will be called when the `store` is created with the `watchForLoadPosts` function. But no, because that one is only watching for a `LOAD_POSTS`. Took me way too long...
+
+#### `Main.js`
+Like Joes does in his main _Gallery_ Component we need to actually trigger the `loadPosts` action. So adding this helps:
+```
+const Main = React.createClass({
+  componentDidMount() {
+    this.props.loadPosts();
+  },
+  ...
+```
+
+
+#### `reducers/Posts.js`
+Here the `POSTS_LOADED` will listen to taht action type. If that action happens (fetching posts done) it will assign the _posts_ to the `state`.  
+```
+  case 'POSTS_LOADED':
+console.info('POSTS_LOADED');
+    return action.posts;
+```
+This is working, but wrong. I kill the original state. I think. I'm not sure. But let's continue and see what happens. On the other hands the likes work and I think I only set the inital state there when the posts are being fetched the first time. But it does look wrong.
+```
+  return { ...state, posts: action.posts };
+```
+This will break it though. I think this is because Redux is splitting the store/data into these components by itself. That's why later own in the _posts reducer_ every _state_ is representing one _post_, like here:
+```
+{...state[i], likes: state[i].likes + 1},
+```
+But still... something is fishy here.
+
+
+#### `sagas/sagas.js`
+Current state is this:
+```
+import { fetchPosts } from '../data/posts.js';
+import { put, take } from 'redux-saga/effects';
+
+export function* loadPosts() {
+console.info('loadPosts');
+  try {
+    const posts = yield fetchPosts()
+console.log(posts)
+    yield put({type: 'POSTS_LOADED', posts})
+  } catch(error) {
+    yield put({type: 'POSTS_LOAD_FAILURE', error})
+  }
+}
+
+export function* watchForLoadPosts() {
+  while(true) {
+    yield take('LOAD_POSTS');
+    yield loadPosts();
+  }
+}
+```
+
+## Adding saga for comments
+
+The _posts_ are being fetched and added to the store. Can we copy the whole thing and make it work for comments as well? At least fetch them.  
+I really just copied the _posts_ approach.
+
+### `actions/actionCreators.js`
+```
+// load comments initally
+export function loadComments() {
+  return {
+    type: 'LOAD_COMMENTS'
+  }
+}
+```
+
+### `Main.js`
+```
+  componentDidMount() {
+    this.props.loadPosts();
+    this.props.loadComments();
+  },
+```
+
+### `data/comments.js`
+export const fetchComments = () => {
+  console.info('fetchComments');
+  return fetch(API_ENDPOINT).then( response => response.json())
+};
+
+### `reducers/comments.js`
+```
+function comments(state = [], action) {
+  if(typeof action.postId !== 'undefined') {
+    return {
+      // take the current state
+      ...state,
+      // overwrite this post with a new one
+      [action.postId]: postComments(state[action.postId], action)
+    }
+  }
+
+  switch(action.type){
+    case 'COMMENTS_LOADED':
+console.info('COMMENTS_LOADED');
+      return action.comments;
+
+    case 'COMMENT_LOAD_FAILURE':
+console.error('oh oh, POSTS_LOAD_FAILURE');
+      return state;
+
+    default:
+      return state;
+  }
+
+  return state;
+}
+```
+
+### `sagas/sagas.js`
+```
+export function* loadComments() {
+console.info('Comments');
+  try {
+    const comments = yield fetchComments()
+console.log(comments)
+    yield put({type: 'COMMENTS_LOADED', comments})
+  } catch(error) {
+    yield put({type: 'COMMENTS_LOAD_FAILURE', error})
+  }
+}
+
+
+export function* watchForLoadComments() {
+  while(true) {
+    yield take('LOAD_COMMENTS');
+    yield loadComments();
+  }
+}
+```
+
+### `store.js`
+```
+import {watchForLoadPosts, watchForLoadComments} from './sagas/sagas';
+
+const sagaMiddleware = createSagaMiddleware();
+const store = createStore(rootReducer, applyMiddleware(sagaMiddleware));
+sagaMiddleware.run(watchForLoadPosts);
+sagaMiddleware.run(watchForLoadComments);
+```
+
